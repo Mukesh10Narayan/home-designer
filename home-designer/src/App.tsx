@@ -12,7 +12,7 @@ import './App.css'
 import './HomePage.css'
 
 function initialDesign(): {design: Design; error: string} {
-  try { const saved=localStorage.getItem(storageKey); return {design:saved?parseDesign(saved):{version:1,items:starterItems()},error:''} }
+  try { const saved=localStorage.getItem(storageKey); return {design:saved?withMissingStarters(parseDesign(saved)):{version:1,items:starterItems()},error:''} }
   catch(e){return {design:{version:1,items:[]},error:`Could not load saved design. Your stored data has not been overwritten. ${e instanceof Error?e.message:String(e)}`}}
 }
 const loaded=initialDesign()
@@ -23,16 +23,14 @@ export default function App() {
   const [room,setRoom]=useState<Room|null>(null)
   const [surface,setSurface]=useState<Surface>('floor')
   const [view3D,setView3D]=useState(false)
-  const [dark,setDark]=useState(false)
+  const [dark,setDark]=useState(true)
   const [lighting,setLighting]=useState(initialLighting)
   const [house3D,setHouse3D]=useState(false)
-  const [fullscreen,setFullscreen]=useState(false)
   const [selected,setSelected]=useState<string|null>(null)
   const [saveError,setSaveError]=useState('')
   const [past,setPast]=useState<Design[]>([])
   const [future,setFuture]=useState<Design[]>([])
   const canvas=useRef<SVGSVGElement>(null)
-  const workspace=useRef<HTMLElement>(null)
   const houseDialog=useRef<HTMLDialogElement>(null)
   const drag=useRef<{id:string;dx:number;dy:number;before:Design}|null>(null)
   const items=useMemo(()=>design.items.filter(i=>i.room===room?.id),[design.items,room])
@@ -44,21 +42,12 @@ export default function App() {
     catch(e){queueMicrotask(()=>setSaveError(`Could not save: ${e instanceof Error?e.message:String(e)}. Export a backup.`))}
   },[design,saveBlocked])
   useEffect(()=>{
-    const change=()=>setFullscreen(Boolean(document.fullscreenElement))
-    document.addEventListener('fullscreenchange',change)
-    return ()=>document.removeEventListener('fullscreenchange',change)
-  },[])
-  useEffect(()=>{
     const dialog=houseDialog.current
     if(house3D&&dialog&&!dialog.open) dialog.showModal()
     return ()=>{if(dialog?.open)dialog.close()}
   },[house3D])
-  async function toggleFullscreen(element:HTMLElement|null){
-    try {
-      if(document.fullscreenElement) await document.exitFullscreen()
-      else if(element?.requestFullscreen) await element.requestFullscreen()
-      else setError('Fullscreen is unavailable in this browser. The expanded workspace is still available.')
-    } catch(e){setError(`Could not change fullscreen: ${e instanceof Error?e.message:String(e)}`)}
+  function home(){
+    setRoom(null);setSelected(null);setHouse3D(false);setView3D(false)
   }
   function editRoom(next:Room,nextSurface:Surface,id?:string){
     setRoom(next);setSurface(nextSurface);setSelected(id??null);setView3D(false);setHouse3D(false)
@@ -121,7 +110,7 @@ export default function App() {
     const e=extent(item)
     return item.x+e.w/2>o.x&&item.x-e.w/2<o.x+o.w&&item.y+e.h/2>o.y&&item.y-e.h/2<o.y+o.h
   }):[]
-  const projectControls=<div className="file-actions"><button aria-pressed={dark} onClick={()=>setDark(v=>!v)}>{dark?'Light mode':'Dark mode'}</button><button onClick={()=>setHouse3D(true)}>Whole house 3D</button><button onClick={()=>{if(confirm('Add missing starter furniture and lights? Existing items are kept unchanged. Deleted starter items will be restored.'))commit(withMissingStarters(design))}}>Add starter items</button><button onClick={exportFile}>Export design</button><label className="button">Import JSON<input type="file" accept=".json,application/json" hidden onChange={async e=>{
+  const projectControls=<div className="file-actions"><button aria-pressed={dark} onClick={()=>setDark(v=>!v)}>{dark?'Light mode':'Dark mode'}</button><button onClick={()=>setHouse3D(true)}>Whole house 3D</button><button onClick={exportFile}>Export design</button><label className="button">Import JSON<input type="file" accept=".json,application/json" hidden onChange={async e=>{
       const file=e.target.files?.[0];e.target.value='';if(!file)return
       try{const next=parseDesign(await file.text());commit(next);setSaveBlocked(false);setSelected(null);setError('')}catch(err){setError(`Import rejected: ${err instanceof Error?err.message:String(err)}`)}
     }}/></label></div>
@@ -131,11 +120,12 @@ export default function App() {
     {error&&<div className="error" role="alert">{error}<button onClick={()=>setError('')}>Dismiss</button></div>}
     {saveError&&<div className="error" role="alert">{saveError}</div>}
     {saveBlocked&&<p className="error">Automatic saving is paused to protect unreadable saved data. Import a valid backup or <button onClick={()=>{if(confirm('Replace the unreadable local save with this design?')){setSaveBlocked(false);setError('')}}}>replace local save</button>.</p>}
-    <main ref={workspace} className={room?`room-workspace${view3D?' room-workspace-3d':''}`:'reference-workspace'}>
+    {room&&<nav className="breadcrumbs" aria-label="Breadcrumb"><button onClick={home}>Home</button><span aria-hidden="true">/</span>{view3D?<><button onClick={()=>setView3D(false)}>{room.name}</button><span aria-hidden="true">/</span><span aria-current="page">3D preview</span></>:<span aria-current="page">{room.name}</span>}</nav>}
+    <main className={room?`room-workspace${view3D?' room-workspace-3d':''}`:'reference-workspace'}>
       {!room?<HomePage onRoom={r=>editRoom(r,'floor')} controls={projectControls}/>:
-      <><section className="panel editor"><div className="section-title"><div><button className="back" onClick={()=>{setRoom(null);setSelected(null)}}>← Whole home</button><h2>{room.name}</h2><p>{room.w}' × {room.h}' · {room.w*room.h} sq ft</p></div><div className="actions"><button onClick={()=>toggleFullscreen(workspace.current)}>{fullscreen?'Exit fullscreen':'Fullscreen'}</button><button disabled={!past.length} onClick={undo}>Undo</button> <button disabled={!future.length} onClick={redo}>Redo</button></div></div>
+      <><section className="panel editor"><div className="section-title"><div><h2>{room.name}</h2><p>{room.w}' × {room.h}' · {room.w*room.h} sq ft</p></div><div className="actions"><button disabled={!past.length} onClick={undo}>Undo</button> <button disabled={!future.length} onClick={redo}>Redo</button></div></div>
         <nav aria-label="Room views">{surfaces.map(s=><button key={s} aria-pressed={!view3D&&surface===s} onClick={()=>{setSurface(s);setView3D(false);setSelected(null)}}>{s==='floor'?'Floor':s==='ceiling'?'Ceiling':`${s} wall`}</button>)}<button aria-pressed={view3D} onClick={()=>{setView3D(true);setSelected(null)}}>3D preview</button></nav>
-        {view3D?<Studio3D key={room.id} room={room} items={items} dark={dark} lighting={lighting} onLighting={setLighting} onVisibility={visibility} onEdit={editRoom}/>:<>
+        {view3D?<Studio3D key={room.id} room={room} items={items} dark={dark} lighting={lighting} onLighting={setLighting} onVisibility={visibility} onEdit={editRoom} onHome={home}/>:<>
         <p className="hint">{surface==='floor'||surface==='ceiling'?'North up. X runs east, Y runs south.':'Elevation: Y runs down from the finished ceiling. North/south: X runs west to east. East/west: X runs north to south.'} Drag items (3 inch snap), or use arrow keys (Shift = 1 ft). Rotate with R.</p>
         {!hasWall(room,surface)&&<p className="warning">Open edge / circulation zone, not a physical wall. Wall-mounted objects cannot be added here.</p>}
         {partialWall&&<p className="warning">Partial wall: only {physicalRanges.map(r=>`${r.start}–${r.end} ft`).join(', ')} along this elevation is solid. Mounted objects stay within that section; the remaining edge is open.</p>}
@@ -172,8 +162,9 @@ export default function App() {
       </aside>}</>}
     </main>
     {house3D&&<dialog ref={houseDialog} className="house-dialog" aria-label="Whole house 3D" onCancel={()=>setHouse3D(false)} onClose={()=>setHouse3D(false)}>
-      <div className="section-title"><div><span className="eyebrow">DESIGN C · 27 × 53 FT</span><h2>Whole house in 3D</h2></div><div className="actions"><button onClick={()=>toggleFullscreen(houseDialog.current)}>{fullscreen?'Exit fullscreen':'Fullscreen'}</button><button onClick={()=>setHouse3D(false)}>Close 3D</button></div></div>
-      <Studio3D items={design.items} dark={dark} lighting={lighting} onLighting={setLighting} onVisibility={visibility} onEdit={editRoom}/>
+      <nav className="breadcrumbs" aria-label="Breadcrumb"><button onClick={home}>Home</button><span aria-hidden="true">/</span>{room&&<><button onClick={()=>setHouse3D(false)}>{room.name}</button><span aria-hidden="true">/</span></>}<span aria-current="page">Whole house 3D</span></nav>
+      <div className="section-title"><div><span className="eyebrow">DESIGN C · 27 × 53 FT</span><h2>Whole house in 3D</h2></div></div>
+      <Studio3D items={design.items} dark={dark} lighting={lighting} onLighting={setLighting} onVisibility={visibility} onEdit={editRoom} onHome={home}/>
     </dialog>}
     <footer><span role="status">{saveBlocked?'Local save paused':saveError?'Local save failed':'Autosave enabled on this browser'}</span><span>Local browser save · Export JSON to keep a portable backup</span><span>{ceilingHeight} ft finished ceiling · Concept only</span></footer>
   </div>

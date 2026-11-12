@@ -6,6 +6,7 @@ import { ceilingHeight, obstacles, rooms, wallColor, wallRanges, wallSides } fro
 import { isLight } from './design'
 import type { Item } from './design'
 import type { Lighting, WallSelection } from './scene'
+import { furnitureModel, lightGuide } from './rendering'
 
 type Props = {
   room?: Room
@@ -85,12 +86,6 @@ export default function Room3D({ room, items, lighting, dark, selectedWall, onWa
       const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,transparent:opacity<1,opacity,roughness:.65,depthWrite:opacity===1}))
       mesh.position.set(x,y,z);parent.add(mesh);return mesh
     }
-    function rays(parent:THREE.Object3D,origin:THREE.Vector3,targets:THREE.Vector3[],color:string) {
-      const points=targets.flatMap(target=>[origin,target])
-      const mesh=new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color,transparent:true,opacity:.65,depthWrite:false}))
-      mesh.userData.ray=true
-      parent.add(mesh)
-    }
     function label(text:string,x:number,z:number) {
       const canvas=document.createElement('canvas');canvas.width=512;canvas.height=64
       const ctx=canvas.getContext('2d')
@@ -129,9 +124,9 @@ export default function Room3D({ room, items, lighting, dark, selectedWall, onWa
           const wx=ox+(horizontal?centre:side==='west'?0:r.w)
           const wz=oz+(horizontal?(side==='north'?0:r.h):centre)
           const inward=new THREE.Vector3(side==='west'?1:side==='east'?-1:0,0,side==='north'?1:side==='south'?-1:0)
-          const origin=new THREE.Vector3(wx,5,wz).addScaledVector(inward,-3).add(new THREE.Vector3(0,3,0))
-          const end=new THREE.Vector3(wx,0.12,wz).addScaledVector(inward,Math.min(5,horizontal?r.h:r.w))
-          rays(sunRays,origin,[-.6,0,.6].map(d=>end.clone().add(new THREE.Vector3(horizontal?d:0,0,horizontal?0:d))),'#ffd23f')
+          const origin=new THREE.Vector3(wx,ceilingHeight-opening.y-opening.h/2,wz).addScaledVector(inward,.08)
+          const end=new THREE.Vector3(wx,.025,wz).addScaledVector(inward,Math.min(5,(horizontal?r.h:r.w)*.55))
+          lightGuide(sunRays,origin,end,horizontal?opening.w*.44:.75,horizontal?.75:opening.w*.44,'#e5b124',.2)
         }
       }
     }
@@ -149,20 +144,20 @@ export default function Room3D({ room, items, lighting, dark, selectedWall, onWa
       const z=oz+(horizontal?item.y:s==='north'?item.depth/2:s==='south'?r.h-item.depth/2:item.x)
       const y=s==='floor'?item.depth/2:s==='ceiling'?ceilingHeight-item.depth/2:ceilingHeight-item.y
       const group=new THREE.Group();group.visible=item.visible!==false;scene.add(group)
+      const model=horizontal?furnitureModel(item):null
+      if(model) {
+        model.position.set(x,y,z);model.rotation.y=-item.rotation*Math.PI/180
+        group.add(model)
+        continue
+      }
       const mesh=box(group,horizontal||s==='north'||s==='south'?item.w:item.depth,horizontal?item.depth:item.h,horizontal?item.h:s==='east'||s==='west'?item.w:item.depth,x,y,z,item.color,item.kind==='Ceiling panel'?.5:1)
       const a=item.rotation*Math.PI/180
       if(horizontal) mesh.rotation.y=-a
       else if(s==='north'||s==='south') mesh.rotation.z=-a
       else mesh.rotation.x=a
-      if(item.kind==='Fan') {
-        mesh.scale.set(.18,1,.18)
-        const blade=box(group,item.w,.1,.25,x,y,z,item.color);blade.rotation.y=-a
-        const blade2=box(group,.25,.1,item.h,x,y,z,item.color);blade2.rotation.y=-a
-      } else if(item.kind==='Bed') {
+      if(item.kind==='Bed') {
         const pillow=box(group,item.w*.8,.25,1.2,0,item.depth/2+.15,-item.h/2+.9,'#eaf0f2')
         mesh.add(pillow)
-      } else if(item.kind==='Sofa') {
-        const back=box(group,item.w,.9,.3,0,item.depth/2+.3,-item.h/2+.15,'#737c56');mesh.add(back)
       } else if(item.kind==='Cupboard'||item.kind==='Cabinet') {
         const seam=box(group,.025,item.surface==='floor'?item.depth*.85:item.h*.85,.025,0,0,(horizontal?item.h:item.depth)/2+.02,'#5e675f');mesh.add(seam)
       }
@@ -170,15 +165,15 @@ export default function Room3D({ room, items, lighting, dark, selectedWall, onWa
         const light=new THREE.PointLight('#ffffff',35,13,1.5)
         light.position.set(x,y-.3,z);group.add(light)
         const beam=new THREE.Group();group.add(beam)
-        const floorY=.18
         const spread=item.kind==='Tube light'?1.5:2
-        const targets=[[-spread,-spread],[spread,-spread],[spread,spread],[-spread,spread],[0,0]]
-          .map(([dx,dz])=>new THREE.Vector3(Math.max(ox+.15,Math.min(ox+r.w-.15,x+dx)),floorY,Math.max(oz+.15,Math.min(oz+r.h-.15,z+dz))))
-        rays(beam,new THREE.Vector3(x,y-.25,z),targets,'#ffffff')
+        const target=new THREE.Vector3(Math.max(ox+.15,Math.min(ox+r.w-.15,x)),.03,Math.max(oz+.15,Math.min(oz+r.h-.15,z)))
+        const rx=Math.max(.05,Math.min(spread,target.x-ox,ox+r.w-target.x))
+        const rz=Math.max(.05,Math.min(spread,target.z-oz,oz+r.h-target.z))
+        lightGuide(beam,new THREE.Vector3(x,Math.max(.06,y-.25),z),target,rx,rz,'#f2f4f6')
         fixtures.push({group,light,rays:beam,material:mesh.material,item})
       }
     }
-    renderer.setPixelRatio(Math.min(devicePixelRatio,2))
+    renderer.setPixelRatio(Math.min(devicePixelRatio,1.5))
     node.appendChild(renderer.domElement)
     state.current={scene,renderer,camera,controls,ambient,sun,sunRays,fixtures,walls}
     const resize=new ResizeObserver(()=>{
@@ -204,22 +199,32 @@ export default function Room3D({ room, items, lighting, dark, selectedWall, onWa
     const contextLost=(e:Event)=>{e.preventDefault();setError('3D graphics context was lost. Reopen this view to retry; your design is saved separately.')}
     renderer.domElement.addEventListener('webglcontextlost',contextLost)
     let frame=0
-    function animate(){controls.update();renderer.render(scene,camera);frame=requestAnimationFrame(animate)}
-    animate()
+    // Continue only while damping changes the camera; idle scenes have no frame loop.
+    const render=()=>{
+      renderer.render(scene,camera)
+      if(!frame) frame=requestAnimationFrame(animate)
+    }
+    controls.addEventListener('change',render)
+    function animate(){frame=0;controls.update()}
+    render()
     return ()=>{
       cameraPose.current={key,position:camera.position.clone(),target:controls.target.clone()}
       state.current=null
-      cancelAnimationFrame(frame);resize.disconnect();controls.dispose()
+      cancelAnimationFrame(frame);resize.disconnect();controls.removeEventListener('change',render);controls.dispose()
       renderer.domElement.removeEventListener('pointerdown',pointerDown)
       renderer.domElement.removeEventListener('pointerup',pick)
       renderer.domElement.removeEventListener('webglcontextlost',contextLost)
+      const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>()
       scene.traverse(obj=>{
         if(obj instanceof THREE.Mesh||obj instanceof THREE.LineSegments||obj instanceof THREE.Sprite){
-          if('geometry' in obj) obj.geometry.dispose()
-          const materials=Array.isArray(obj.material)?obj.material:[obj.material]
-          materials.forEach(m=>{if('map' in m&&m.map instanceof THREE.Texture)m.map.dispose();m.dispose()})
+          if('geometry' in obj) geometries.add(obj.geometry)
+          const objectMaterials=Array.isArray(obj.material)?obj.material:[obj.material]
+          objectMaterials.forEach(m=>{materials.add(m);Object.values(m).forEach(value=>{if(value instanceof THREE.Texture) textures.add(value)})})
         }
       })
+      geometries.forEach(geometry=>geometry.dispose())
+      textures.forEach(texture=>texture.dispose())
+      materials.forEach(material=>material.dispose())
       renderer.dispose();node.replaceChildren()
     }
   },[room,items])
@@ -231,6 +236,14 @@ export default function Room3D({ room, items, lighting, dark, selectedWall, onWa
     host.current!.dataset.sunRays=String(s.sunRays.visible)
     host.current!.dataset.activeLights=String(active)
     host.current!.dataset.visibleItems=String(items.filter(i=>i.visible!==false&&(!room||i.room===room.id)).length)
+    let models=0,blades=0
+    s.scene.traverseVisible(object=>{
+      if(object.userData.model) models++
+      if(object.userData.fanBlade) blades++
+    })
+    host.current!.dataset.detailedModels=String(models)
+    host.current!.dataset.fanBlades=String(blades)
+    host.current!.dataset.lightGuideStyle='tapered-volume-floor-glow'
   },[lighting,dark,selectedWall,items,room])
   return <div className="scene-wrap"><p className="hint">Drag to orbit · Scroll / pinch to zoom · Right-drag to pan · Click a wall to inspect. Roof omitted; transparent walls expose the interiors. Yellow rays = sunlight; white rays = electric lights. Illustrative, not a daylight or lux simulation.</p>{error&&<p role="alert">{error}</p>}<div className="three-view" ref={host} aria-label={`3D preview of ${room?.name??'whole house'}`}/></div>
 }

@@ -16,6 +16,6 @@ applyTo: "home-designer/src/**"
 - 3D is a schematic combined preview. Maintain a usable 2D workflow if WebGL fails. Dispose GPU resources and animation loops on unmount.
 - Share room and whole-house lighting/inspection controls through `Studio3D`. Theme darkness and scene time-of-day are independent. Sunlight guides are yellow; electric-light guides are white. Switching sources off must remove their illumination and guides.
 - Preserve optional `visible`/`label` fields in version-1 imports; omitted visibility means visible. Hiding is reversible, participates in history and saves, and hides fixture-emitted light as well as geometry.
-- Starter defaults use deterministic IDs. Do not auto-merge into existing designs or replace edited/hidden defaults. The explicit merge action may restore missing/deleted defaults.
+- Built-in defaults use deterministic IDs and live in `defaults.ts`. Merge missing defaults on valid saved-design load, but never replace edited/hidden defaults or corrupt saved data. No manual Add starter items control. Deleted built-in IDs return on reload; hide built-ins for persistent removal.
 - Wall inspector colours are currently read-only. Distinguish gold selection highlighting from the actual default wall finish. Floor items near physical walls are listed as against-wall furniture; this is not synchronized elevation modeling.
 - Test browser interactions in `home-designer/e2e/` and geometry/import cases in `home-designer/src/design.test.ts` when changing related behavior.

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import type { Item } from './design'
 import { itemsOnWall } from './design'
 import type { Room, WallSide } from './plan'
@@ -14,8 +14,20 @@ type Props = {
   onLighting: (value: Lighting)=>void
   onVisibility: (id: string, visible: boolean)=>void
   onEdit: (room: Room, surface: Item['surface'], id?: string)=>void
+  onHome: ()=>void
 }
-export default function Studio3D({room,items,dark,lighting,onLighting,onVisibility,onEdit}:Props) {
+export default function Studio3D({room,items,dark,lighting,onLighting,onVisibility,onEdit,onHome}:Props) {
+  const [expanded,setExpanded]=useState(false)
+  useEffect(()=>{
+    if(!expanded) return
+    const overflow=document.body.style.overflow
+    document.body.style.overflow='hidden'
+    const escape=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setExpanded(false)}
+    }
+    document.addEventListener('keydown',escape,true)
+    return ()=>{document.body.style.overflow=overflow;document.removeEventListener('keydown',escape,true)}
+  },[expanded])
   const [wall,setWall]=useState<WallSelection|null>(null)
   const selectedRoom=rooms.find(r=>r.id===wall?.roomId)
   const relevant=selectedRoom&&wall?itemsOnWall(items,selectedRoom,wall.side):items.filter(i=>!room||i.room===room.id)
@@ -30,8 +42,12 @@ export default function Studio3D({room,items,dark,lighting,onLighting,onVisibili
       <button aria-label={`Edit ${i.label??i.kind} ${i.id}`} onClick={()=>onEdit(rooms.find(r=>r.id===i.room)!,i.surface,i.id)}>Edit</button>
     </div>)}</div>
   }
-  return <div className="studio-3d">
+  return <div className={`studio-3d${expanded?' model-fullscreen':''}`} data-expanded={expanded}>
     <div className="scene-column">
+      <div className="model-toolbar">
+        {expanded?<nav className="breadcrumbs" aria-label="Model breadcrumb"><button onClick={onHome}>Home</button><span aria-hidden="true">/</span><span aria-current="page">{room?.name??'Whole house'} 3D</span></nav>:<span className="eyebrow">{room?.name??'Whole house'} · 3D model</span>}
+        <button onClick={()=>setExpanded(v=>!v)}>{expanded?'Exit fullscreen':'Fullscreen'}</button>
+      </div>
       <div className="lighting-controls" aria-label="Lighting controls">
         <div className="time-switch"><button aria-pressed={lighting.time==='day'} onClick={()=>onLighting({...lighting,time:'day',sun:true})}>Day</button><button aria-pressed={lighting.time==='night'} onClick={()=>onLighting({...lighting,time:'night',sun:false})}>Night</button></div>
         <label><input type="checkbox" checked={lighting.sun} disabled={lighting.time==='night'} onChange={e=>onLighting({...lighting,sun:e.target.checked})}/>Sunlight <span className="ray-key sun"/></label>
