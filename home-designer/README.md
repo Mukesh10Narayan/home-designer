@@ -32,7 +32,7 @@ Target repository: `Mukesh10Narayan/home-designer`. Expected site URL after a su
 5. Commit and push the source to `main`. Complete any Git Credential Manager browser prompt using **Mukesh10Narayan**. Git author name/email and GitHub authentication are separate; setting `user.name` alone does not log into another account. Do not change global identity or clear other accounts' credentials.
 6. Monitor **Actions > Deploy home designer to GitHub Pages**. On success, open the Pages URL. Subsequent pushes to `main` deploy automatically.
 
-The workflow installs dependencies from the lockfile, lints, runs unit tests and builds the app with its repository URL prefix before deploying only `home-designer/dist`. Build/test outputs remain ignored by Git.
+The workflow installs dependencies from the public npm registry using the lockfile, lints, runs unit tests and builds the app with its repository URL prefix before deploying only `home-designer/dist`. Keep lockfile resolution URLs public so builds do not depend on a local/private registry. Build/test outputs remain ignored by Git.
 
 For a local Pages-path preview in PowerShell, from this app directory:
 
@@ -53,12 +53,13 @@ Open the preview server's `/home-designer/` URL. Normal local development defaul
 ## Use
 
 - Select a room on the whole-home plan or room schedule.
+- The homepage reproduces the original HTML plan's colours, furniture illustration, dimensions, window/door details, ventilation arrows and sidebar. **Furniture** and **Airflow / daylight** toggle these schematic overlays; they do not modify saved interior objects. **Print / Save PDF** prints the dimensioned home plan.
 - Choose floor, a compass wall, ceiling, or 3D preview.
 - Add cupboards, cabinets, shelves, beds, sofas, ceiling panels, fans or lights as appropriate to the view.
 - Drag with mouse/touch (3-inch position snap). Select an item to edit its dimensions, centre coordinates, colour and angle. `R` rotates 15 degrees; arrows move 3 inches; Shift + arrows move 1 ft.
 - Undo/redo tracks design edits. Positions and rotated bounds stay within their surface.
 - In 3D, drag to orbit, scroll/pinch to zoom and right-drag to pan. Editing happens in 2D. Transparent walls and an omitted roof expose all objects.
-- Dark mode is enabled initially; use **Light mode / Dark mode** in the header to switch the interface. Theme and scene day/night are separate.
+- The homepage starts in the original reference's light appearance; use **Dark mode / Light mode** in the studio tools to switch the interface. The same control remains in the room-editor header. Theme and scene day/night are separate.
 - Room workspaces use the available screen width with a taller drawing area. **Fullscreen** expands the room workspace (including its tools) or whole-house dialog; Escape exits browser fullscreen.
 - **Whole house 3D** opens an orbitable model of the entire approved plan in a modal. Click a wall to highlight it and inspect its room, current default finish and objects on/against it. The compass wall buttons provide a keyboard-accessible alternative. **Open wall editor** opens the selected elevation. Wall finish editing is deliberately deferred; the displayed swatch is read-only.
 - In room or house 3D, **Day / Night** set ambient lighting and sunlight. Night turns the sun off; Day restores it. **Sunlight** and **Ceiling / tube lights** independently control the light sources. **Show rays** controls only the visual beam guides, not source illumination. Yellow beams indicate exterior-window sunlight; white beams indicate electric lights. These are illustrative guides, not ray-traced daylight, shadows or a lux/solar study.
@@ -81,6 +82,7 @@ Structural height is 11 ft. False-ceiling drop is 1.5 ft; the finished ceiling i
 - `src/plan.ts`: single source of room geometry, wall lines, openings and heights.
 - `src/design.ts`: typed objects, palettes, rotated bounds and import validation.
 - `src/HousePlan.tsx`: accessible clickable whole-home SVG.
+- `src/HomePage.tsx` and `src/HomePage.css`: original-reference homepage presentation and schematic overlay controls.
 - `src/App.tsx`: 2D editing, persistence, import/export and history.
 - `src/Room3D.tsx`: on-demand Three.js preview and resource cleanup.
 - `src/Studio3D.tsx`: shared room/house lighting, wall inspector and visibility controls.

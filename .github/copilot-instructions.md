@@ -23,6 +23,7 @@
 - Bedroom 3: 14 x 11 ft. Puja: 6 x 6 ft. Living: 13 x 20 ft. Dining: 13 x 12 ft.
 - Structural ceiling is 11 ft, including a 1.5 ft false-ceiling drop: 9.5 ft finished height.
 - Home page is the Design C plan. Clicking a room enlarges it. Provide floor, individual wall, ceiling and 3D views, with draggable/rotatable cupboards, cabinets, fans, lights and design elements.
+- Match the preserved HTML's homepage look: light paper background, Arial, colourful illustrated Design C, dimension lines, furniture and ventilation toggles, and the master/schedule sidebar. Start in light mode, retain dark mode and all studio tools. Homepage schematic furniture is separate from saved interior designs; keep that distinction explicit.
 - Provide dark/light UI modes, larger room workspaces and fullscreen for room and whole-house views.
 - Whole-house 3D opens in a modal. Clicking a wall shows objects on/against it and its read-only current colour. Wall-colour editing is deferred until requested.
 - Provide day/night scene modes, independently switchable sunlight and electric lights, yellow illustrative sunlight rays and white ceiling/tube-light rays. Do not equate these guides to a physically accurate lighting simulation.

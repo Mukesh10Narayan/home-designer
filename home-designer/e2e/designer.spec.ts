@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { PerspectiveCamera, Vector3 } from 'three'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 test('room editing, pointer drag, rotation, history, export/import, persistence and 3D',async({page})=>{
   const errors:string[]=[]
@@ -76,10 +78,10 @@ test('corrupt local saves are not overwritten on load',async({page})=>{
 
 test('dark mode, enlarged room, fullscreen and starter restoration preserve edits',async({page})=>{
   await page.goto('/')
-  await expect(page.locator('.app')).toHaveAttribute('data-theme','dark')
-  await page.getByRole('button',{name:'Light mode',exact:true}).click()
   await expect(page.locator('.app')).toHaveAttribute('data-theme','light')
   await page.getByRole('button',{name:'Dark mode',exact:true}).click()
+  await expect(page.locator('.app')).toHaveAttribute('data-theme','dark')
+  await page.getByRole('button',{name:'Light mode',exact:true}).click()
   await page.getByRole('button',{name:'Master bedroom, 14 by 16 feet',exact:true}).click()
   expect((await page.locator('.room-canvas').boundingBox())!.height).toBeGreaterThanOrEqual(650)
   await page.getByRole('button',{name:'Fullscreen',exact:true}).click()
@@ -164,4 +166,52 @@ test('room 3D uses the same visibility and light controls, including tubes',asyn
   await page.getByRole('checkbox',{name:'Show Wall tube light starter-master-1',exact:true}).check()
   await page.getByRole('button',{name:'Wall tube light north',exact:true}).click()
   await expect(page.getByRole('spinbutton',{name:'w',exact:true})).toHaveValue('4')
+})
+
+test('home plan matches original HTML artwork and keeps interactive controls',async({page,context})=>{
+  await page.setViewportSize({width:1600,height:1000})
+  const reference=await context.newPage()
+  await reference.setViewportSize({width:1600,height:1000})
+  await reference.goto(pathToFileURL(resolve('..','house-plan.html')).href)
+  await reference.locator('#plan').evaluate(e=>e.setAttribute('style','position:fixed;left:0;top:0;width:800px;height:1300px;max-height:none;margin:0'))
+  await reference.mouse.move(1500,900)
+  const original=await reference.locator('#plan').screenshot({path:'test-results/reference-plan.png'})
+  await page.goto('/')
+  await expect(page.getByRole('heading',{name:'Room to live. Space to breathe.',exact:true})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'A genuinely larger master',exact:true})).toBeVisible()
+  await expect(page.getByRole('table',{name:'Room dimensions'})).toContainText("7' x 4.5'")
+  await page.locator('.reference-plan').evaluate(e=>e.setAttribute('style','position:fixed;left:0;top:0;width:800px;height:1300px;max-height:none;margin:0'))
+  await page.mouse.move(1500,900)
+  const actual=await page.locator('.reference-plan').screenshot({path:'test-results/react-home-plan.png'})
+  const maximumChannelDifference=await page.evaluate(async sources=>{
+    const images=await Promise.all(sources.map(async source=>{
+      const image=new Image()
+      image.src=`data:image/png;base64,${source}`
+      await image.decode()
+      return image
+    }))
+    const [before,after]=images
+    if(before.width!==after.width||before.height!==after.height) throw new Error('Plan screenshot dimensions differ.')
+    const canvas=document.createElement('canvas')
+    canvas.width=before.width;canvas.height=before.height
+    const context=canvas.getContext('2d')
+    if(!context) throw new Error('Canvas comparison is unavailable.')
+    context.drawImage(before,0,0)
+    const originalPixels=context.getImageData(0,0,canvas.width,canvas.height).data
+    context.clearRect(0,0,canvas.width,canvas.height)
+    context.drawImage(after,0,0)
+    const actualPixels=context.getImageData(0,0,canvas.width,canvas.height).data
+    return originalPixels.reduce((maximum,value,i)=>Math.max(maximum,Math.abs(value-actualPixels[i])),0)
+  },[original.toString('base64'),actual.toString('base64')])
+  // Chrome can round antialiased edge colours by one RGB level across documents.
+  expect(maximumChannelDifference).toBeLessThanOrEqual(1)
+  await page.locator('.reference-plan').evaluate(e=>e.removeAttribute('style'))
+  await page.getByRole('checkbox',{name:'Furniture',exact:true}).uncheck()
+  await expect(page.locator('[data-layer=reference-furniture]')).toHaveAttribute('display','none')
+  await page.getByRole('checkbox',{name:'Airflow / daylight',exact:true}).uncheck()
+  await expect(page.locator('[data-layer=reference-air]')).toHaveAttribute('display','none')
+  await page.getByRole('button',{name:'Master bedroom, 14 by 16 feet',exact:true}).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('heading',{name:'Master bedroom',exact:true})).toBeVisible()
+  await reference.close()
 })

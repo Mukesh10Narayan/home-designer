@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
-import HousePlan from './HousePlan'
-import { ceilingHeight, hasWall, obstacles, rooms, size, surfaces, wallRanges } from './plan'
+import HomePage from './HomePage'
+import { ceilingHeight, hasWall, obstacles, size, surfaces, wallRanges } from './plan'
 import type { Room, Surface } from './plan'
 import { extent, fit, kindsFor, palette, parseDesign, storageKey } from './design'
 import type { Design, Item, Kind } from './design'
@@ -9,6 +9,7 @@ import { starterItems, withMissingStarters } from './defaults'
 import Studio3D from './Studio3D'
 import { initialLighting } from './scene'
 import './App.css'
+import './HomePage.css'
 
 function initialDesign(): {design: Design; error: string} {
   try { const saved=localStorage.getItem(storageKey); return {design:saved?parseDesign(saved):{version:1,items:starterItems()},error:''} }
@@ -22,7 +23,7 @@ export default function App() {
   const [room,setRoom]=useState<Room|null>(null)
   const [surface,setSurface]=useState<Surface>('floor')
   const [view3D,setView3D]=useState(false)
-  const [dark,setDark]=useState(true)
+  const [dark,setDark]=useState(false)
   const [lighting,setLighting]=useState(initialLighting)
   const [house3D,setHouse3D]=useState(false)
   const [fullscreen,setFullscreen]=useState(false)
@@ -120,17 +121,18 @@ export default function App() {
     const e=extent(item)
     return item.x+e.w/2>o.x&&item.x-e.w/2<o.x+o.w&&item.y+e.h/2>o.y&&item.y-e.h/2<o.y+o.h
   }):[]
-  return <div className="app" data-theme={dark?'dark':'light'}>
-    <header><div><span className="eyebrow">YOUR HOME, THOUGHTFULLY PLANNED</span><h1>Design C <span>/ Interior studio</span></h1><p>27 ft E-W × 53 ft N-S · 3 bedrooms · 3 bathrooms · Northeast entry</p></div><div className="file-actions"><button aria-pressed={dark} onClick={()=>setDark(v=>!v)}>{dark?'Light mode':'Dark mode'}</button><button onClick={()=>setHouse3D(true)}>Whole house 3D</button><button onClick={()=>{if(confirm('Add missing starter furniture and lights? Existing items are kept unchanged. Deleted starter items will be restored.'))commit(withMissingStarters(design))}}>Add starter items</button><button onClick={exportFile}>Export design</button><label className="button">Import JSON<input type="file" accept=".json,application/json" hidden onChange={async e=>{
+  const projectControls=<div className="file-actions"><button aria-pressed={dark} onClick={()=>setDark(v=>!v)}>{dark?'Light mode':'Dark mode'}</button><button onClick={()=>setHouse3D(true)}>Whole house 3D</button><button onClick={()=>{if(confirm('Add missing starter furniture and lights? Existing items are kept unchanged. Deleted starter items will be restored.'))commit(withMissingStarters(design))}}>Add starter items</button><button onClick={exportFile}>Export design</button><label className="button">Import JSON<input type="file" accept=".json,application/json" hidden onChange={async e=>{
       const file=e.target.files?.[0];e.target.value='';if(!file)return
       try{const next=parseDesign(await file.text());commit(next);setSaveBlocked(false);setSelected(null);setError('')}catch(err){setError(`Import rejected: ${err instanceof Error?err.message:String(err)}`)}
-    }}/></label></div></header>
+    }}/></label></div>
+  return <div className={`app${room?'':' reference-home'}`} data-theme={dark?'dark':'light'}>
+    {room?<header><div><span className="eyebrow">YOUR HOME, THOUGHTFULLY PLANNED</span><h1>Design C <span>/ Interior studio</span></h1><p>27 ft E-W × 53 ft N-S · 3 bedrooms · 3 bathrooms · Northeast entry</p></div>{projectControls}</header>:
+      <header className="reference-header"><div className="eyebrow">A colourful concept for your home</div><h1>Room to live. Space to breathe.</h1><p>Northeast-entry Indian 3 BHK, with a southeast kitchen, a larger master bedroom, a dedicated puja room and three bathrooms. East-living / west-bedroom layout, with interactive room and 3D design tools.</p><div className="home-badges">{['27 ft E-W × 53 ft N-S','1,431 sq ft footprint','3 bedrooms / 3 bathrooms','Southeast kitchen','North is up'].map(label=><span key={label}>{label}</span>)}</div></header>}
     {error&&<div className="error" role="alert">{error}<button onClick={()=>setError('')}>Dismiss</button></div>}
     {saveError&&<div className="error" role="alert">{saveError}</div>}
     {saveBlocked&&<p className="error">Automatic saving is paused to protect unreadable saved data. Import a valid backup or <button onClick={()=>{if(confirm('Replace the unreadable local save with this design?')){setSaveBlocked(false);setError('')}}}>replace local save</button>.</p>}
-    <main ref={workspace} className={room?`room-workspace${view3D?' room-workspace-3d':''}`:undefined}>
-      {!room?<><section className="panel home-plan"><div className="section-title"><h2>Your home plan</h2><span>Click a room to step inside ↗</span></div><HousePlan onRoom={r=>{setRoom(r);setSurface('floor');setSelected(null);setView3D(false)}}/></section>
-      <aside className="panel"><span className="eyebrow">START HERE</span><h2>One room.<br/>Every detail.</h2><p>Select a room, then switch between the floor, four wall elevations, ceiling plan and 3D preview.</p><div className="stat"><strong>11 ft</strong><span>Structural ceiling height</span></div><div className="stat"><strong>9.5 ft</strong><span>Finished height · 1.5 ft false-ceiling drop</span></div><h3>Room schedule</h3><div className="room-list">{rooms.map(r=><button key={r.id} onClick={()=>{setRoom(r);setSurface('floor');setView3D(false);setSelected(null)}}><span>{r.name}</span><small>{r.w}' × {r.h}'</small></button>)}</div><p className="hint">Blue = windows. Brown = door swings. Dimensions are nominal wall-line zones. Concept only, not a construction drawing.</p></aside></>:
+    <main ref={workspace} className={room?`room-workspace${view3D?' room-workspace-3d':''}`:'reference-workspace'}>
+      {!room?<HomePage onRoom={r=>editRoom(r,'floor')} controls={projectControls}/>:
       <><section className="panel editor"><div className="section-title"><div><button className="back" onClick={()=>{setRoom(null);setSelected(null)}}>← Whole home</button><h2>{room.name}</h2><p>{room.w}' × {room.h}' · {room.w*room.h} sq ft</p></div><div className="actions"><button onClick={()=>toggleFullscreen(workspace.current)}>{fullscreen?'Exit fullscreen':'Fullscreen'}</button><button disabled={!past.length} onClick={undo}>Undo</button> <button disabled={!future.length} onClick={redo}>Redo</button></div></div>
         <nav aria-label="Room views">{surfaces.map(s=><button key={s} aria-pressed={!view3D&&surface===s} onClick={()=>{setSurface(s);setView3D(false);setSelected(null)}}>{s==='floor'?'Floor':s==='ceiling'?'Ceiling':`${s} wall`}</button>)}<button aria-pressed={view3D} onClick={()=>{setView3D(true);setSelected(null)}}>3D preview</button></nav>
         {view3D?<Studio3D key={room.id} room={room} items={items} dark={dark} lighting={lighting} onLighting={setLighting} onVisibility={visibility} onEdit={editRoom}/>:<>

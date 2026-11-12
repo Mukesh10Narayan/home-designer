@@ -2,6 +2,12 @@ export type Surface = 'floor' | 'north' | 'east' | 'south' | 'west' | 'ceiling'
 export type Room = { id: string; name: string; x: number; y: number; w: number; h: number; color: string }
 export const structuralHeight = 11
 export const ceilingHeight = 9.5
+export const planLabels: Record<string,string> = {
+  master:'MASTER BEDROOM',bath1:'BATH 1 / ATTACHED',dress:'DRESSING',bed3:'BEDROOM 3',
+  bath3:'BATH 3 / COMMON','bath-lobby':'BATH LOBBY',laundry:'LAUNDRY',
+  bath2:'BATH 2 / ATTACHED',dress2:'DRESSING 2',bed2:'BEDROOM 2',
+  living:'LIVING / HALL',dining:'DINING',puja:'PUJA','kitchen-gap':'OPEN GAP',kitchen:'OPEN KITCHEN',
+}
 export const rooms: Room[] = [
   { id: 'master', name: 'Master bedroom', x: 0, y: 37, w: 14, h: 16, color: '#dcebf6' },
   { id: 'bath1', name: 'Master bath', x: 0, y: 32, w: 7, h: 5, color: '#d8f0ed' },
@@ -20,7 +26,10 @@ export const rooms: Room[] = [
   { id: 'kitchen-gap', name: '4 ft clear gap', x: 14, y: 38, w: 13, h: 4, color: '#f8f6ef' },
   { id: 'kitchen', name: 'Open kitchen', x: 14, y: 42, w: 13, h: 11, color: '#fce6cb' },
 ]
-export const wallPath = 'M0 0 H27 V53 H0 Z M14 0 V53 M0 12 H14 M0 16.5 H14 M7 12 V21 M7 18.75 H14 M0 21 H14 M0 32 H14 M0 37 H14 M7 32 V37 M27 32.09 H21.09 V37.91 H27'
+export const wallPaths = [
+  'M0 0 H27 V53 H0 Z M14 0 V53 M0 12 H14 M0 16.5 H14 M7 12 V21 M7 18.75 H14 M0 21 H14 M0 32 H14 M0 37 H14 M7 32 V37',
+  'M27 32.09 H21.09 V37.91 H27',
+]
 export const windows = [
   [3,53,10,53],[15.5,53,19.5,53],[0,43,0,49],[0,33,0,35.5],
   [0,23.5,0,29],[0,17.5,0,20],[0,13,0,15.5],[0,3,0,8],
