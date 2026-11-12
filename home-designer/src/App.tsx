@@ -26,6 +26,7 @@ export default function App() {
   const [dark,setDark]=useState(true)
   const [lighting,setLighting]=useState(initialLighting)
   const [house3D,setHouse3D]=useState(false)
+  const [editorFull,setEditorFull]=useState(false)
   const [selected,setSelected]=useState<string|null>(null)
   const [saveError,setSaveError]=useState('')
   const [past,setPast]=useState<Design[]>([])
@@ -46,11 +47,22 @@ export default function App() {
     if(house3D&&dialog&&!dialog.open) dialog.showModal()
     return ()=>{if(dialog?.open)dialog.close()}
   },[house3D])
+  const editorFullActive=editorFull&&Boolean(room)&&!view3D
+  useEffect(()=>{
+    if(!editorFullActive) return
+    const overflow=document.body.style.overflow
+    document.body.style.overflow='hidden'
+    const escape=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setEditorFull(false)}
+    }
+    document.addEventListener('keydown',escape,true)
+    return ()=>{document.body.style.overflow=overflow;document.removeEventListener('keydown',escape,true)}
+  },[editorFullActive])
   function home(){
-    setRoom(null);setSelected(null);setHouse3D(false);setView3D(false)
+    setRoom(null);setSelected(null);setHouse3D(false);setView3D(false);setEditorFull(false)
   }
   function editRoom(next:Room,nextSurface:Surface,id?:string){
-    setRoom(next);setSurface(nextSurface);setSelected(id??null);setView3D(false);setHouse3D(false)
+    setRoom(next);setSurface(nextSurface);setSelected(id??null);setView3D(false);setHouse3D(false);setEditorFull(false)
   }
   function visibility(id:string,shown:boolean){
     commit({...design,items:design.items.map(i=>i.id===id?{...i,visible:shown}:i)})
@@ -123,7 +135,7 @@ export default function App() {
     {room&&<nav className="breadcrumbs" aria-label="Breadcrumb"><button onClick={home}>Home</button><span aria-hidden="true">/</span>{view3D?<><button onClick={()=>setView3D(false)}>{room.name}</button><span aria-hidden="true">/</span><span aria-current="page">3D preview</span></>:<span aria-current="page">{room.name}</span>}</nav>}
     <main className={room?`room-workspace${view3D?' room-workspace-3d':''}`:'reference-workspace'}>
       {!room?<HomePage onRoom={r=>editRoom(r,'floor')} controls={projectControls}/>:
-      <><section className="panel editor"><div className="section-title"><div><h2>{room.name}</h2><p>{room.w}' × {room.h}' · {room.w*room.h} sq ft</p></div><div className="actions"><button disabled={!past.length} onClick={undo}>Undo</button> <button disabled={!future.length} onClick={redo}>Redo</button></div></div>
+      <><section className={`panel editor${editorFullActive?' editor-fullscreen':''}`} data-expanded={editorFullActive}><div className="section-title"><div>{editorFullActive&&<nav className="breadcrumbs" aria-label="Editor breadcrumb"><button onClick={home}>Home</button><span aria-hidden="true">/</span><span aria-current="page">{room.name}</span></nav>}<h2>{room.name}</h2><p>{room.w}' × {room.h}' · {room.w*room.h} sq ft</p></div><div className="actions"><button disabled={!past.length} onClick={undo}>Undo</button> <button disabled={!future.length} onClick={redo}>Redo</button>{!view3D&&<> <button onClick={()=>setEditorFull(v=>!v)}>{editorFullActive?'Exit fullscreen':'Fullscreen'}</button></>}</div></div>
         <nav aria-label="Room views">{surfaces.map(s=><button key={s} aria-pressed={!view3D&&surface===s} onClick={()=>{setSurface(s);setView3D(false);setSelected(null)}}>{s==='floor'?'Floor':s==='ceiling'?'Ceiling':`${s} wall`}</button>)}<button aria-pressed={view3D} onClick={()=>{setView3D(true);setSelected(null)}}>3D preview</button></nav>
         {view3D?<Studio3D key={room.id} room={room} items={items} dark={dark} lighting={lighting} onLighting={setLighting} onVisibility={visibility} onEdit={editRoom} onHome={home}/>:<>
         <p className="hint">{surface==='floor'||surface==='ceiling'?'North up. X runs east, Y runs south.':'Elevation: Y runs down from the finished ceiling. North/south: X runs west to east. East/west: X runs north to south.'} Drag items (3 inch snap), or use arrow keys (Shift = 1 ft). Rotate with R.</p>
