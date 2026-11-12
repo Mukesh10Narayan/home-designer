@@ -1,0 +1,15 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, "Segoe UI", sans-serif; background: #101a20; }
+body:has([data-theme="light"]) { background: #f2f5ef; }
+button, .button {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 8px; padding: 9px 13px; cursor: pointer; line-height: 1.3;
+}
+button:hover, .button:hover { background: var(--soft); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button:focus-visible, .button:focus-within, input:focus-visible, select:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 3px;
+}
+input, select { color: var(--ink); background: var(--panel); }
+input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; }
+button, svg { -webkit-tap-highlight-color: transparent; }

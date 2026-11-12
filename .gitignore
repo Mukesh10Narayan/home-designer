@@ -1,0 +1,33 @@
+# Dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Test output and local browser state
+test-results/
+playwright-report/
+blob-report/
+**/playwright/.cache/
+**/playwright/.auth/
+
+# Local environment settings and logs
+.env
+.env.*
+!.env.example
+!.env.*.example
+logs/
+*.log
+*.log.*
+
+# Machine-specific editor and OS files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
